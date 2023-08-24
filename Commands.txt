@@ -1,0 +1,780 @@
+[root@controller ~]# cat reg1.yml
+
+- name: debug regiser plbook
+
+  hosts: all
+
+  become: yes
+
+  tasks:
+
+  - name: installation talk
+
+    yum: name=telnet state=absent
+
+    register: output
+
+  - name: runnning debugger to show the output
+
+    debug:
+
+      var: output
+
+ 
+
+[root@controller ~]# cat reg2.yml
+
+- name: second play
+
+  hosts: demo[1]
+
+  tasks:
+
+  - name: ntp
+
+    yum:
+
+      name: ntp
+
+      state: installed
+
+    register: ntp_out
+
+  - name: printing the output
+
+    debug:
+
+      var: ntp_out
+
+  - name: printing a specific parameter
+
+    debug:
+
+      var: ntp_out.changed
+
+ 
+
+[root@controller ~]# cat invent.yml
+
+[demo]
+
+3.14.151.40
+
+13.59.213.240
+
+
+vi /etc/ansible/hosts
+
+  461  ls
+
+  462  vi invent.yml
+
+  463  ansible-playbook -h
+
+  464  clear
+
+  465  ansible-playbook -i invent.yml reg2.yml
+
+  466  vi reg2.yml
+
+  467  ansible-playbook -i invent.yml reg2.yml
+
+  468  clear
+
+  469  ls
+
+  470  cat ls -ltr
+
+  471  ls -ltr
+
+  472  clear
+
+  473  cat reg1.yml
+
+  474  cat reg2.yml
+
+  475  cat invent.yml
+
+
+-----------------------------------------------
+
+practise reg and debug and react once done
+
+[11:50 AM] Raman Khanna
+
+ansible-playbook -i invent.yml reg2.yml -vvv
+
++________________________________________________________
+
+Raman Khanna (Guest)
+12:33 PM
+
+[root@controller ~]# cat reg3.yml
+- hosts: all
+  become: yes
+  become_method: sudo
+  vars:
+    pkg: tree
+    service: ntpd
+  tasks:
+  - name: installing {{ pkg }} package
+    package:
+      name: "{{ pkg }}"
+      state: present
+    register: rk
+  - name: print installation summary
+    debug:
+      var: rk.rc
+  - name: configure {{ service }} service
+    copy:
+      src: ./ntp.conf
+      dest: /etc/ntp.conf
+    notify:
+    - rk
+  - name: start {{ service }} service
+    service:
+      name: "{{ service }}"
+      state: started
+      enabled: yes
+  - name: configuration successfully done on hosts
+    debug: msg="Playbook ran successfully completed on host {{ansible_hostname}}!!"
+  handlers:
+  - name: rk
+    service:
+      name: "{{ service }}"
+      state: restarted
+
+ 
+
+[root@controller ~]# cat error.yml
+- name: ignore errors
+  hosts: all
+  tasks:
+  - name: this is a command which is executed
+    command: /bin/date12
+    ignore_errors: yes
+  - name: install httpd
+    yum: name=httpd state=installed
+  - name: service restart
+    service: name=ntpd state=restarted
+
+
+has context menu
+Compose
+
+------------------------------------------------------
+
+[root@controller ~]# cat error.yml
+- name: ignore errors
+  hosts: all
+  tasks:
+  - name: this is a command which is executed
+    command: touch /home/raman
+#   command: /dev/null
+    ignore_errors: true
+    register: task1out
+  - name: debugg task1 result
+    debug:
+      var: task1out
+  - name: install ntp
+    yum: name=ntp state=installed
+  - name: service start
+    service: name=ntpd enabled=true state=started
+  - name: final task - run only when task1
+    debug:
+      msg: this task only ran as task1 failed..
+    when: task1out.failed
+[root@controller ~]# cat reg3.yml
+- hosts: all
+  become: yes
+  become_method: sudo
+  vars:
+    pkg: ntp
+    service: ntpd
+  tasks:
+  - name: installing {{ pkg }} package
+    package:
+      name: "{{ pkg }}"
+      state: present
+    register: rk
+  - name: print installation summary
+    debug:
+      var: rk.rc
+    when: rk.rc == 0
+#   when: rk.rc != 0
+  - name: configure {{ service }} service
+    copy:
+      src: ./ntp.conf
+      dest: /etc/ntp.conf
+    notify:
+    - rk
+  - name: start {{ service }} service
+    service:
+      name: "{{ service }}"
+      state: started
+      enabled: yes
+  - name: configuration successfully done on hosts
+    debug: msg="Playbook ran successfully completed on host {{ansible_hostname}}!!"
+  handlers:
+  - name: rk
+    service:
+      name: "{{ service }}"
+      state: restarted
+
+ 
+
+[root@controller ~]# cat error2.yml
+- hosts: all
+  tasks:
+  - name: Register a variable
+    package: name=ntp state=installed
+    register: ntp_out
+    ignore_errors: true
+  - name: debug
+    debug:
+      var: ntp_out
+  - name: Use the variable in conditional statement
+    shell: echo "motd contains the word ansible"
+    when: ntp_out.rc == 0
+    register: echo_output
+
+   - name: Display echoed message
+    debug:
+      var: echo_output.stdout
+
+  - name: Register a variable
+    shell: cat /etc/motd
+    register: motd_contents
+ 
+  - name: Use the variable in conditional statement
+    shell: echo "motd contains the word hi"
+    when: motd_contents.stdout.find('hi') != -1
+    register: echo_output
+
+  - name: Display echoed message
+    debug:
+      var: echo_output.stdout
+
+--------------------------------------------------------------------
+
+[4:05 PM] Raman Khanna
+
+[root@controller ~]# cat condition.yml
+
+- name: play to create a raman user
+
+  hosts: all
+
+  tasks:
+
+  - name: description for task1 for creating user
+
+    user: name=ramankhanna state=present
+
+    when: ansible_distribution == "CentOS" and ansible_distribution_version == "7.9"
+
+    register: user_out
+
+  - name: false task
+
+    debug:
+
+      var: user_out
+
+#    when: user_out.rc == 0
+
+  - name: create a file
+
+    file:
+
+      path: /tmp/rk
+
+      state: touch
+
+      mode: 1600
+
+    when: ansible_distribution != "Redhat"
+
+[root@controller ~]# cat loop1.yml
+
+- hosts: localhost
+
+  tasks:
+
+  - name: create multiple  users wih loop
+
+    user:
+
+      name: "{{ item }}"
+
+      state: present
+
+      shell: /bin/bash
+
+    loop:
+
+    - gagan2
+
+    - raman2
+
+    - raman3
+
+    - raman4
+
+    - raman5
+
+    - raman6
+
+  - name: second ask o loop
+
+    command: echo {{ item }}
+
+    loop: [ 1,3,5,7,8,9 ]
+
+    when: item >=5
+
+[root@controller ~]# cat loop2.yml
+
+- name: installing packages
+
+  hosts: all
+
+  tasks:
+
+  - name: check centos-version
+
+    command: cat /etc/os-release
+
+    register: version
+
+  - name: install pckage
+
+    package:
+
+      name: "{{item}}"
+
+      state: present
+
+    loop:
+
+    - php
+
+    - gcc
+
+    - talk
+
+    - httpd
+
+    - tree
+
+    - telnet
+
+    when: ansible_distribution == "CentOS"
+______________________________________________________________________
+
+[9:55 AM] Raman Khanna
+
+Using ansible with standard user : ramankhanna
+
+--- created user ramankhanna on node1 and main  and node2
+
+passwd ramankhanna : raman
+
+su - ramankhanna
+
+
+--- try to login node1 and node2 from main being ramankhannauser
+
+
+--- setup passwordless authenication
+
+
+ssh ramankhanna@3.128.181.25
+
+    2  ssh ramankhanna@18.221.40.32
+
+    3  clear
+
+    4  pwd
+
+    5  ssh-keygen -t rsa
+
+    6  ls -a
+
+    7  cd .ssh/
+
+    8  ls
+
+    9  ssh-copy-id ramankhanna@3.128.181.25
+
+   10  ssh-copy-id ramankhanna@18.221.40.32
+
+   11  cd ..
+
+   12  ls
+
+   13  ssh ramankhanna@3.128.181.25
+
+   14  ssh ramankhanna@18.221.40.32
+
+
+--- on all nodes give ramankhanna previleged access :
+
+su - roo user
+
+
+visudo
+
+##
+
+## Allow root to run any commands anywhere
+
+root    ALL=(ALL)       ALL
+
+Bhargava     ALL=(ALL)       NOPASSWD: ALL
+
+su - Bhargava
+
+ansible-playbook stand.yml
+
+
+[ramankhanna@controller ~]$ cat stand.yml
+
+- name: standard user play
+
+  hosts: all
+
+  user: ramankhanna
+
+  become: yes
+
+  tasks:
+
+  - name: create afile
+
+    file: path=/home/standarduserfile state=touch
+
+  - name: package inst
+
+    yum: name=telnet state=installed
+
+_______________________________________________________________
+
+[11:22 AM] Raman Khanna
+
+[root@controller ramanrole]# ansible-galaxy init ramanrole
+
+[root@controller ramanrole]# cat defaults/main.yml
+
+---
+
+# defaults file for ramanrole
+user:
+  ramanroleuser
+uid:
+  7654
+ 
+
+[root@controller ramanrole]# cat tasks/main.yml
+
+---
+# tasks file for ramanrole
+- name: Creating {{user}}
+  user: name={{user}} uid={{uid}} state=present
+  register: outputs
+- name: Checking outputs
+  debug: var=outputs.
+
+[root@controller ramanrole]# cat vars/main.yml
+
+---
+
+# vars file for ramanrole
+
+user:
+
+  gagandeep
+
+uid:
+
+  7555
+
+
+[11:22 AM] Raman Khanna
+
+[root@controller ~]# cat role1.yml
+
+---
+
+- name: Testing role
+
+  hosts: all
+
+# Define roles here
+
+  roles:
+    - ramanrole
+
+
+[11:23 AM] Raman Khanna
+
+yum install tree 
+__________________________________________________
+
+[root@controller ntp-role]# cat defaults/main.yml
+---
+# defaults file for ntp-role
+username: khanna2
+uidd: 1022
+[root@controller ntp-role]# cat handlers/main.yml
+---
+# handlers file for ntp-role
+- name: restart ntp
+  service: name=ntpd state=restarted
+[root@controller ntp-role]# cat tasks/main.yml
+---
+# tasks file for ntp-role
+- name: ntp os package installation
+  package: name=ntp state=present
+- name: ntp file configuration
+  copy: src=./ntp.conf dest=/etc/ntp.conf
+  notify:
+  - restart ntp
+- name: to start ntp service
+  service: name=ntpd state=started enabled=yes
+- name: create user
+  user:
+    name: "{{username}}"
+    uid: "{{uidd}}"
+[root@controller ntp-role]# cat vars/main.yml
+---
+
+[root@controller ~]# cat role1.yml
+---
+- name: Testing role
+  hosts: all
+
+ 
+
+# Define roles here
+  roles:
+    - ramanrole
+    - ntp-role
+
+__________________________________________________
+
+
+[2:24 PM] Raman Khanna
+
+[root@controller http-role]# cat defaults/main.yml
+
+---
+
+# defaults file for http-role
+
+pkg: httpd
+
+[root@controller http-role]# cat handlers/main.yml
+
+---
+
+# handlers file for http-role
+
+- name: raman
+
+  service:
+
+    name: httpd
+
+    state: restarted
+
+[root@controller http-role]# cat tasks/main.yml
+
+---
+
+# tasks file for http-role
+
+- name: include nested ntp-role
+
+  include_role:
+
+    name: ntp-role
+
+- name: installing apache package
+
+  yum: name="{{ pkg }}" state=present
+
+- name: configuration of conf file of apache
+
+  template:
+
+    src: httpd.conf
+
+    dest: /etc/httpd/conf/httpd.conf
+
+  notify: raman
+
+- name: starting apache webservice
+
+  service: name=httpd enabled=yes state=started
+
+
+[2:24 PM] Raman Khanna
+
+[root@controller ~]# cat newplaybook.yml
+
+---
+
+- name: configure httpd service
+
+  hosts: all
+
+  roles:
+
+  - http-role
+
+--------------
+
+[2:26 PM] Raman Khanna
+
+Below just for reference :
+
+[2:26 PM] Raman Khanna
+
+tasks:
+
+- name: Import tasks from 
+
+      import_tasks: ./ntp.yml
+
+ 
+
+OR
+
+ 
+
+  tasks:
+
+    - import_playbook: path/to/other_playbook.yml
+
+      tags: task2
+
+ 
+
+ 
+
+OR
+
+ 
+
+  tasks:
+
+    - name: Import Task 2 from Other Playbook
+
+      include_tasks: path/to/other_playbook.yml
+
+      tags: task2
+_______________________________________________
+
+[3:20 PM] Raman Khanna
+
+---------------------
+
+-- create a repo on gihub
+
+ 
+
+clone the repo on cli of main...
+
+ 
+
+git clone https://github.com/ramannkhanna2/ansible-roles.git
+
+  965  yum insall git -y
+
+  966  yum install git -y
+
+  967  git clone https://github.com/ramannkhanna2/ansible-roles.git
+
+ 
+
+ 
+
+-- push the role to my github account
+
+ github accoun
+Username: bhargava.nagaraj@gmail.com
+Password: Acchu6161!
+
+yum install git -y
+
+  967  git clone https://github.com/ramannkhanna2/ansible-roles.git
+
+  968  ls
+
+  969  cd ansible-roles
+
+  970  ls
+
+  971  cd ..
+
+  972  hisory
+
+  973  history
+
+  974  clear
+
+  975  ls
+
+  976  mv http-role/ ./ansible-roles/
+
+  977  ls
+
+  978  cd ansible-roles
+
+  979  ls
+
+  980  cd  ..
+
+  981  ls
+
+  982  mv newplaybook.yml ./ansible-roles/
+
+  983  cd ansible-roles/
+
+  984  ls
+
+  985  git status
+
+  986  ls
+
+  987  git add .
+
+  988  git status
+
+  989  git commit -m "myhttp-role"
+
+  990  git config --global user.email "raman@email.com"
+
+  991  git config --global user.name "raman"
+
+  992  git commit -m "uploading my role"
+
+  993  git status
+
+  994  git push origin main
+
+ 
+
+ 
+
+--- creation  of access oken :
+
+home >> righ side settings >> developer settings >> generate classic token with all repo permission and to delete as well
+
+
+GitHub - ramannkhanna2/ansible-roles
+
+Contribute to ramannkhanna2/ansible-roles development by creating an account on GitHub.
+
+
